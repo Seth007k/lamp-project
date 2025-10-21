@@ -1,0 +1,27 @@
+version: '3.9'
+
+services:
+  web:
+    image: nginx:latest
+    container_name: nginx-container
+    ports:
+      - "8080:80"
+    volumes:
+      - ./html:/usr/share/nginx/html
+    networks:
+      - kens-netzwerk
+
+  db:
+    image: mysql:latest
+    container_name: mysql-container
+    environment:
+      MYSQL_ROOT_PASSWORD: geheim
+      MYSQL_DATABASE: testdb
+      MYSQL_USER: webuser
+      MYSQL_PASSWORD: webpass
+    networks:
+      - kens-netzwerk
+
+networks:
+  kens-netzwerk:
+    driver: bridge
