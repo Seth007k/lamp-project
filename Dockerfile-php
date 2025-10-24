@@ -1,0 +1,33 @@
+#Basis-Image: Offizielles PHP-Image mit FPM (FastCGI Process Manager) für PHP 8.1. 
+FROM php:8.1-fpm 
+
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+       libzip-dev \
+       zlib1g-dev \
+       libpng-dev \
+       libonig-dev \
+       libjpeg-dev \
+       libxml2-dev \
+  && docker-php-ext-install pdo_mysql zip exif pcntl bcmath gd \
+  && rm -rf /var/lib/apt/lists/*
+
+
+#RUN apt-get update \                                                         -> aktualisiert Paketlisten (wichtig vor jedem apt-get install)
+# && apt-get install -y --no-install-recommends \                             -> installiert Paketabhängigkeiten ohne unnötige empfohlene Pakete (--no-install-recommends \) und ohne Nutzerinteraktion also ohne, dass ich bestätigen muss (-y)
+#     libzip-dev \                                                            -> Das hier sind Entwicklungsbibliotheken, die PHP-Erweiterungen benötigen
+#    zlib1g-dev \                                                             -> Das hier sind Entwicklungsbibliotheken, die PHP-Erweiterungen benötigen
+#   libpng-dev \                                                              -> Das hier sind Entwicklungsbibliotheken, die PHP-Erweiterungen benötigen
+#  libonig-dev \                                                              -> Das hier sind Entwicklungsbibliotheken, die PHP-Erweiterungen benötigen
+# libjpeg-dev \                                                               -> Das hier sind Entwicklungsbibliotheken, die PHP-Erweiterungen benötigen
+#libxml2-dev \                                                                -> Das hier sind Entwicklungsbibliotheken, die PHP-Erweiterungen benötigen
+#&& docker-php-ext-install pdo_mysql zip exif pcntl bcmath gd \               -> verwendet das mitgelieferte Helfer-Skript docker-php-ext-install, um native PHP-Extensions zu kompilieren/installieren: pdo_mysql: Datenbankzugriff auf MySQL/MariaDB, zip: Zip-Funktionen, exif: Bildmetadata, pcntl: Prozesskontrolle (CLI-Skripte), bcmath: hohe Präzisions-Mathematik, gd: Bildverarbeitung
+#&& rm -rf /var/lib/apt/lists/*                                               -> entfernt apt-Caches zur Reduzierung der Image-Größe (Best Practice)
+
+
+
+
+
+WORKDIR /var/www/html
+
