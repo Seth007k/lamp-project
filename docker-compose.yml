@@ -1,27 +1,65 @@
-version: '3.9'
+version: '3.9' #Legt Compose-Datei-vesion fest und steuert welche compose-Funktionen verfügbar sind.
 
-services:
-  web:
-    image: nginx:latest
-    container_name: nginx-container
-    ports:
+services: #Jeder Service ist ein Container-typ, der von compose gemanagt wird.
+  web: #Name für Service: web. Dieser Name wird im netzwerk angesprochen
+
+    image: nginx:latest #DockerHub registry verwendetes Image -> stable ist eine stabile version man könnte alternativ latest nehmen
+
+    container_name: nginx_container #Optionaler name für Container, sonst wird ein zufälliger unaussagekräftiger Container name genommen
+
+    ports: #Port-Mapping Host:Container. "80:80" heißt: Host-Port 80 → Container-Port 80. So ist NGINX auf http://localhost erreichbar.
       - "8080:80"
-    volumes:
-      - ./html:/usr/share/nginx/html
-    networks:
-      - kens-netzwerk
 
-  db:
-    image: mysql:latest
-    container_name: mysql-container
+    volumes: #Hier werden Dateisysteme gebunden
+      - ./html:/var/www/html:ro #Dieser lokale Ordner wird, in diesen Container /var/www/html gemountet. Mit Zusatz :ro = read only = NGINX kann Dateien lesen aber nicht ändern ( sicherer für Webroot)
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro #Das hier ist meine konfigdatei welche die Standardkonfig ersetzt. Auch read only.
+    depends_on: #Hier wird festegelegt dass web est nach dem php Service startet
+      - php
+    networks: #Zuweisung zum benutzerdefiniertem Netzwerk, somit sind die container im selben netzwerk mit ihrem Namen erreichbar
+      - kens-netzwerk
+      
+  php: #Das ist wieder der Service-Name
+    build: #build sagt compose, dieses Service Image lokal aus einem Dockerfile bauen
+      context: . #context legt fest welcher Arbeitsbereich für Docker-Build verwendet wird. Docker schaut in diesen Kontext und schickt alle Dateie daraus an den Docker-Daemon, damit sie während des builds verfügbar sind.
+      dockerfile: Dockerfile-php #In diesem Kontext soll die Datei Dockerfile-php genutzt werden, um das Image zu bauen
+    container_name: lamp_php #Individueller Container-Name zum ansprechen im Netwerk
+    volumes: 
+      - ./html:/var/www/html #./html wird in /var/www/html gebindet. Kein :ro hier, da PHP Dateien schreiben etc muss. Synchro zwischen Host und Container
+    depends_on:
+      - db #wieder die Startreihenfolge also php startet nach db
+    networks:
+      - kens-netzwerk #mein lokales Netzwerk
+
+  db: #Service-Name
+    image: mysql:latest #offizielles mysql Image Version latest 
+    container_name: lamp_db #Name für Container
+    restart: unless-stopped #Container wird automatisch neu gestartet, außer er wude manuell gestoppt. Gut für persistenz im Dev/Prod
     environment:
-      MYSQL_ROOT_PASSWORD: geheim
-      MYSQL_DATABASE: testdb
-      MYSQL_USER: webuser
-      MYSQL_PASSWORD: webpass
-    networks:
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+      MYSQL_DATABASE: "${MYSQL_DATABASE}"
+      MYSQL_USER: "${MYSQL_USER}"
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD}" #Das hier sind Umgebungsvariablen für MYSQL-Initialisiernug. Diese Werte werden aus der .env Datei geladen, sensible Daten immer in die .env und mit "${variable} ansprechen. .env in die git ignore aufnehmen!
+    volumes: 
+    - db_data:/var/lib/mysql #db_data wird innerhalb des Conainers in /var/lib/mysql gemounted. Hier werden die Daten dauerhaft gespeichert auch bei Löschung des Containers
+    networks: #Mein Netzwerk
       - kens-netzwerk
 
-networks:
+  phpmyadmin: # Service-Name
+    image: phpmyadmin/phpmyadmin # Offizielles phpMyAdmin Image
+    container_name: lamp_phpmyadmin # Container-Name
+    environment:
+      PMA_HOST: db # Hier wird phpMyAdmin gesagt, wo die Datenbank erreichbar ist
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}" # Root-Passwort aus der Umgebungsvariablen
+    ports: # Gibt phpMyAdmin den Port localhost:8080
+      - "8081:80"
+    depends_on:
+      - db # startet erst nachdem db gestartet ist
+    networks: # Mein-Netzwerk
+      - kens-netzwerk
+
+networks: # <== GANZ AUF DER OBERSTEN EBENE!
   kens-netzwerk:
-    driver: bridge
+    driver: bridge # Deklariert das benutzerdefinierte Netzwerk als Bridge
+
+volumes: # <== Ebenfalls auf oberster Ebene
+  db_data: # Definiert das Named Volume für persistente DB-Daten
